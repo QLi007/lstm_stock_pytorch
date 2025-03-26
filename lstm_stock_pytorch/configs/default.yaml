@@ -1,0 +1,57 @@
+﻿training:
+  batch_size: 64
+  seq_length: 30
+  epochs: 100
+  learning_rate: 0.001
+  max_leverage: 2.0
+  kelly_alpha: 0.7  # Weight for Kelly component in the loss
+  drawdown_weight: 1.0  # Weight for drawdown component in the loss
+  smoothness_weight: 0.5  # Weight for smoothness component in the loss
+  return_weight: 1.0  # Weight for return component in the loss
+
+data:
+  path: "data/sample.csv"
+  test_size: 0.2  # Fraction of data for testing
+  val_size: 0.1  # Fraction of data for validation (from train set)
+  target: "future_5d_return"
+  target_offset: 5  # How many days in the future to predict
+  normalize: "standard"  # "standard", "minmax", or null
+  feature_window: 250  # Window size for feature normalization
+  scale_separately: true  # Whether to scale each feature separately
+  
+  # Features to use (if empty or not specified, will use all available features)
+  features: 
+    # Technical indicators - automatically calculated
+    - "prev_close"
+    - "return_1d"
+    # Moving Averages
+    - "MA_5"
+    - "MA_10"
+    - "MA_20"
+    - "MA_34"
+    - "MA_60"
+    - "MA_120"
+    - "MA_200"
+    # Price to MA ratios
+    - "price_to_MA_5"
+    - "price_to_MA_20"
+    - "price_to_MA_60"
+    # RSI indicators
+    - "RSI_14"
+    - "RSI_28"
+    # MACD components
+    - "MACD"
+    - "MACD_signal"
+    - "MACD_hist"
+    # Williams %R
+    - "Williams_%R_14"
+    # Volatility
+    - "volatility_20"
+    - "volatility_60"
+    # Volume indicators (if volume available)
+    - "volume_ratio"
+
+model:
+  input_size: 21  # Will be automatically determined from features
+  hidden_size: 128  # Increased from 64 for more capacity
+  num_layers: 2
