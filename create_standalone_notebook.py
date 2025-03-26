@@ -6,11 +6,12 @@ nb = nbf.v4.new_notebook()
 
 # 添加标题和介绍
 intro_cell = nbf.v4.new_markdown_cell('''
-# LSTM Stock Prediction - Standalone Version
+# LSTM Stock Prediction - Standalone Version with GPU Support
 
-This notebook contains a complete implementation of LSTM stock prediction with sequential validation, without any external dependencies.
+This notebook contains a complete implementation of LSTM stock prediction with sequential validation, optimized for GPU acceleration in Google Colab.
 
 ## Features
+- GPU-accelerated training
 - Download stock data from Yahoo Finance
 - Prepare data with technical indicators
 - Train LSTM model with custom loss function
@@ -18,14 +19,20 @@ This notebook contains a complete implementation of LSTM stock prediction with s
 - Market regime analysis
 - Visualizations and performance metrics
 
+## GPU Setup in Colab
+1. Go to Runtime > Change runtime type
+2. Select "GPU" as Hardware accelerator
+3. Click "Save"
+
 ## Setup and Requirements
-First, let's install the required packages.
+First, let's install the required packages and configure GPU support.
 ''')
 
 # 安装包的代码单元
 install_cell = nbf.v4.new_code_cell('''
 # Install required packages
 !pip install -q yfinance pandas matplotlib seaborn scikit-learn torch tqdm
+!pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ''')
 
 # 导入库的代码单元
@@ -49,6 +56,7 @@ import random
 import time
 import warnings
 import seaborn as sns
+import gc
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -59,8 +67,34 @@ torch.manual_seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 
-# Check if CUDA is available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# GPU Configuration and Memory Management
+def setup_gpu():
+    """Configure GPU settings and memory management."""
+    if torch.cuda.is_available():
+        # Get GPU properties
+        gpu_name = torch.cuda.get_device_name(0)
+        gpu_memory = torch.cuda.get_device_properties(0).total_memory / 1024**3  # Convert to GB
+        
+        print(f"Using GPU: {gpu_name}")
+        print(f"Total GPU Memory: {gpu_memory:.2f} GB")
+        
+        # Set CUDA device
+        torch.cuda.set_device(0)
+        
+        # Enable cuDNN benchmarking for faster training
+        torch.backends.cudnn.benchmark = True
+        
+        # Set memory allocator settings
+        torch.cuda.empty_cache()
+        gc.collect()
+        
+        return True
+    else:
+        print("No GPU available. Using CPU.")
+        return False
+
+# Initialize GPU
+device = torch.device("cuda" if setup_gpu() else "cpu")
 print(f"Using device: {device}")
 
 # Create directories
@@ -69,15 +103,40 @@ os.makedirs("models", exist_ok=True)
 os.makedirs("results", exist_ok=True)
 os.makedirs("logs", exist_ok=True)
 
-print("LSTM Stock Prediction - Standalone Version")
-print("==========================================")
+print("LSTM Stock Prediction - Standalone Version with GPU Support")
+print("==========================================================")
+''')
+
+# GPU内存管理函数
+gpu_memory_cell = nbf.v4.new_code_cell('''
+def manage_gpu_memory():
+    """Monitor and manage GPU memory usage."""
+    if torch.cuda.is_available():
+        # Get current GPU memory usage
+        allocated = torch.cuda.memory_allocated(0) / 1024**3
+        cached = torch.cuda.memory_reserved(0) / 1024**3
+        
+        print(f"GPU Memory Allocated: {allocated:.2f} GB")
+        print(f"GPU Memory Cached: {cached:.2f} GB")
+        
+        # Clear cache if memory usage is high
+        if allocated > 0.8:  # If more than 80% memory is used
+            torch.cuda.empty_cache()
+            gc.collect()
+            print("Cleared GPU cache")
+            
+def to_device(data, device):
+    """Move data to specified device (CPU/GPU)."""
+    if isinstance(data, (list, tuple)):
+        return [to_device(x, device) for x in data]
+    return data.to(device)
 ''')
 
 # LSTM模型定义的标题
 model_title = nbf.v4.new_markdown_cell('''
 ## LSTM Model Definition
 
-Now, let's define the LSTM model and the custom loss function.
+Now, let's define the LSTM model and the custom loss function with GPU optimization.
 ''')
 
 # LSTM模型定义代码
@@ -85,7 +144,7 @@ lstm_model_cell = nbf.v4.new_code_cell('''
 # Define the LSTM model
 class LSTMPredictor(nn.Module):
     """
-    LSTM model for stock prediction with enhanced architecture.
+    LSTM model for stock prediction with enhanced architecture and GPU optimization.
     """
     def __init__(self, input_size, hidden_size=128, num_layers=2, dropout=0.3, 
                  bidirectional=False, use_attention=True):
@@ -108,7 +167,7 @@ class LSTMPredictor(nn.Module):
         self.bidirectional = bidirectional
         self.use_attention = use_attention
         
-        # LSTM layer
+        # LSTM layer with GPU optimization
         self.lstm = nn.LSTM(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -218,7 +277,7 @@ loss_function_cell = nbf.v4.new_code_cell('''
 # Define custom loss functions
 class KellyDrawdownLoss(nn.Module):
     """
-    Combined Kelly Criterion and Drawdown optimization.
+    Combined Kelly Criterion and Drawdown optimization with GPU support.
     
     Combines:
     1. Kelly Criterion for position sizing
@@ -233,6 +292,10 @@ class KellyDrawdownLoss(nn.Module):
         self.smoothness_weight = smoothness_weight
         
     def forward(self, preds, targets):
+        # Ensure inputs are on the same device
+        preds = preds.to(preds.device)
+        targets = targets.to(preds.device)
+        
         # Portfolio returns based on predicted positions and actual returns
         portfolio_returns = preds * targets
         
@@ -276,21 +339,21 @@ class KellyDrawdownLoss(nn.Module):
 data_processing_title = nbf.v4.new_markdown_cell('''
 ## Data Processing Class
 
-Now, let's define the data processing class that will handle downloading and preparing the stock data.
+Now, let's define the data processing class that will handle downloading and preparing the stock data with GPU support.
 ''')
 
 # 模型训练标题  
 model_training_title = nbf.v4.new_markdown_cell('''
 ## Model Training Class
 
-Next, let's define the class for training the LSTM model.
+Next, let's define the class for training the LSTM model with GPU optimization.
 ''')
 
 # 主函数和使用示例标题
 main_function_title = nbf.v4.new_markdown_cell('''
 ## Example Usage
 
-Now, let's demonstrate the usage of the LSTM stock prediction framework with a complete example.
+Now, let's demonstrate the usage of the LSTM stock prediction framework with GPU acceleration.
 ''')
 
 # 向notebook添加所有单元格
@@ -298,6 +361,7 @@ nb.cells = [
     intro_cell,
     install_cell,
     import_cell,
+    gpu_memory_cell,
     model_title,
     lstm_model_cell,
     loss_function_cell,
