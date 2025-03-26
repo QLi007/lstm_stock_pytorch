@@ -6,7 +6,8 @@ LSTM Stock Prediction - Standalone Version for Google Colab
 This script contains a complete implementation of LSTM stock prediction with sequential validation,
 without any external dependencies.
 """
-
+import subprocess
+import sys
 import os
 import numpy as np
 import pandas as pd
@@ -993,13 +994,15 @@ class MarketRegimeAnalyzer:
         Returns:
             DataFrame with regime assignments
         """
+
+
+
         try:
             from sklearn.mixture import GaussianMixture
         except ImportError:
             print("Installing sklearn for regime detection...")
-            !pip install -q scikit-learn
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "scikit-learn"])
             from sklearn.mixture import GaussianMixture
-        
         # Get return data
         returns = self.data['return_1d'].fillna(0).values.reshape(-1, 1)
         
