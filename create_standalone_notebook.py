@@ -141,10 +141,61 @@ Now, let's define the LSTM model and the custom loss function with GPU optimizat
 
 # LSTM模型定义代码
 lstm_model_cell = nbf.v4.new_code_cell('''
-# Define the LSTM model
+# Define Residual Block
+class ResidualBlock(nn.Module):
+    """
+    Residual Block with batch normalization and activation.
+    """
+    def __init__(self, in_channels, out_channels, stride=1, dropout=0.3):
+        super().__init__()
+        self.conv1 = nn.Linear(in_channels, out_channels)
+        self.bn1 = nn.BatchNorm1d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(dropout)
+        
+        self.conv2 = nn.Linear(out_channels, out_channels)
+        self.bn2 = nn.BatchNorm1d(out_channels)
+        
+        # Shortcut connection
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Linear(in_channels, out_channels),
+                nn.BatchNorm1d(out_channels)
+            )
+        
+        # Initialize weights
+        self._init_weights()
+    
+    def _init_weights(self):
+        """Initialize weights for better convergence."""
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+    
+    def forward(self, x):
+        identity = x
+        
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.dropout(out)
+        
+        out = self.conv2(out)
+        out = self.bn2(out)
+        
+        out += self.shortcut(identity)
+        out = self.relu(out)
+        
+        return out
+
+# Define the LSTM model with residual blocks
 class LSTMPredictor(nn.Module):
     """
-    LSTM model for stock prediction with enhanced architecture and GPU optimization.
+    LSTM model for stock prediction with enhanced architecture, GPU optimization,
+    and residual blocks for better training.
     """
     def __init__(self, input_size, hidden_size=128, num_layers=2, dropout=0.3, 
                  bidirectional=False, use_attention=True):
@@ -188,22 +239,16 @@ class LSTMPredictor(nn.Module):
                 nn.Linear(lstm_output_size // 2, 1)
             )
         
-        # Fully connected layers with residual connections
-        self.fc1 = nn.Linear(lstm_output_size, hidden_size)
-        self.act1 = nn.ReLU()
-        self.dropout1 = nn.Dropout(dropout)
-        
-        self.fc2 = nn.Linear(hidden_size, hidden_size // 2)
-        self.act2 = nn.ReLU()
-        self.dropout2 = nn.Dropout(dropout)
+        # Residual blocks for feature processing
+        self.res_blocks = nn.Sequential(
+            ResidualBlock(lstm_output_size, hidden_size, dropout=dropout),
+            ResidualBlock(hidden_size, hidden_size, dropout=dropout),
+            ResidualBlock(hidden_size, hidden_size // 2, dropout=dropout)
+        )
         
         # Final output layer with Tanh activation for position sizing (-1 to 1)
         self.fc_out = nn.Linear(hidden_size // 2, 1)
         self.tanh = nn.Tanh()
-        
-        # Batch normalization to improve training stability
-        self.bn1 = nn.BatchNorm1d(hidden_size)
-        self.bn2 = nn.BatchNorm1d(hidden_size // 2)
         
         # Initialize weights
         self._init_weights()
@@ -252,18 +297,8 @@ class LSTMPredictor(nn.Module):
             # Use last timestep
             context = lstm_out[:, -1, :]
         
-        # Fully connected layers with residual connections and batch normalization
-        out = self.fc1(context)
-        if batch_size > 1:  # BatchNorm1d requires batch size > 1
-            out = self.bn1(out)
-        out = self.act1(out)
-        out = self.dropout1(out)
-        
-        out = self.fc2(out)
-        if batch_size > 1:
-            out = self.bn2(out)
-        out = self.act2(out)
-        out = self.dropout2(out)
+        # Process through residual blocks
+        out = self.res_blocks(context)
         
         # Final output with Tanh activation for position sizing (-1 to 1)
         out = self.fc_out(out)
