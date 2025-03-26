@@ -129,6 +129,9 @@ def main():
     parser.add_argument("--model-path", default="models/lstm_model.pt", help="Path to save the model")
     parser.add_argument("--loss-function", default="kelly", choices=["kelly", "trading_opt"], 
                         help="Loss function to use: kelly (KellyDrawdownLoss) or trading_opt (TradingOptimizationLoss)")
+    parser.add_argument("--sequential-validation", action="store_true", help="Run sequential validation")
+    parser.add_argument("--bootstrap", action="store_true", help="Run bootstrapped validation")
+    parser.add_argument("--bootstrap-iterations", type=int, default=10, help="Number of bootstrap iterations")
     args = parser.parse_args()
     
     # Create log directory if it doesn't exist
@@ -248,22 +251,52 @@ def main():
     val_metrics = evaluate_model(model, criterion, val_dataloader, device)
     logger.info(f"Validation metrics: {val_metrics}")
     
-    # Save model if requested
+    # Save the trained model if requested
     if args.save_model:
-        model_dir = os.path.dirname(args.model_path)
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
-            
-        torch.save({
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'config': config,
-            'val_metrics': val_metrics,
-            'losses': losses
-        }, args.model_path)
-        
+        os.makedirs(os.path.dirname(args.model_path), exist_ok=True)
+        torch.save(model.state_dict(), args.model_path)
         logger.info(f"Model saved to {args.model_path}")
-    
+
+    # Run sequential validation if requested
+    if args.sequential_validation:
+        logger.info("Running sequential validation...")
+        from src.sequential_validation import WalkForwardValidator, MarketRegimeAnalyzer, run_bootstrapped_validation
+        
+        # Create validator
+        validator = WalkForwardValidator(model, loader, config, device=device)
+        
+        # Run sequential validation
+        val_results = validator.run_sequential_validation(
+            data=None,  # Use test data from loader
+            log_dir="logs/sequential",
+            plot=True
+        )
+        
+        # Analyze performance by market regime
+        logger.info("Analyzing performance by market regime...")
+        regime_analyzer = MarketRegimeAnalyzer(val_results)
+        regime_metrics = regime_analyzer.analyze_performance_by_regime()
+        logger.info("Regime Performance:")
+        for regime, metrics in regime_metrics.iterrows():
+            logger.info(f"  {regime}: {metrics['sharpe']:.2f} Sharpe, {metrics['mean_return']*100:.2f}% avg return, n={metrics['count']}")
+        
+        # Plot regime performance
+        regime_analyzer.plot_regime_performance()
+        
+        # Run bootstrapped validation if requested
+        if args.bootstrap:
+            logger.info("Running bootstrapped validation...")
+            bootstrap_results, bootstrap_stats = run_bootstrapped_validation(
+                validator,
+                loader.test_data,
+                n_iterations=args.bootstrap_iterations,
+                sample_size=0.8,
+                random_seed=42,
+                log_dir="logs/bootstrap"
+            )
+            
+            logger.info(f"Bootstrapped validation completed with {args.bootstrap_iterations} iterations")
+
     # Print final summary
     logger.info("Training completed!")
     logger.info(f"Final validation loss: {val_metrics['loss']:.4f}")
