@@ -1,56 +1,113 @@
-﻿# LSTM Stock Predictor with Kelly Criterion
+﻿# LSTM Stock Predictor with Advanced Loss Functions
 
-åŸºäºŽPyTorchçš„é‡åŒ–äº¤æ˜"ç³»ç»Ÿï¼Œé›†æˆåŠ¨æ€å‡¯åˆ©å…¬å¼ä»"ä½ç®¡ç0†
+A PyTorch-based quantitative trading system with LSTM prediction and advanced loss functions, including Kelly criterion and adaptive multi-objective optimization.
 
-## åŠŸèƒ½ç‰¹æ€§
-- æ—¶é—´åºåˆ—å®‰å…¨å¤„ç0†ï¼ˆä¸æ ¼é¿å…æœªæå‡½æ•°ï¼‰
-- LSTMä»·æ ¼é¢„æµ‹æ¨¡åž‹
-- åŠ¨æ€é£Žé™©æŽ§åˆ¶ç–ç•¥
-- èªåŠ¨åŒ–CI/CDæµæ°´çº¿
-- å•å…æµ‹è¯•è¦†ç›–æ ¸å¿ƒåŠŸèƒ½
+## Features
+- Time-series safe processing (avoiding future data leakage)
+- LSTM price prediction model
+- Dynamic risk control strategies 
+- Advanced loss functions:
+  - Kelly Enhanced Loss
+  - Adaptive Multi-Objective Loss
+- Comprehensive evaluation metrics
+- Baseline strategy comparisons
+- Automated CI/CD pipeline
+- Unit tests for core functionality
 
-## å¿«é€Ÿå¼€å§‹
-`ash
-# å®‰è£…ä¾èµ–
+## Quick Start
+```bash
+# Install dependencies
 pip install -r requirements.txt
 
-# è¿è¡Œè®­ç»ƒ
+# Run training with default loss function
 python src/train.py
 
-# æ‰è¡Œæµ‹è¯•
-python -m pytest tests/ -v
-`
+# Run training with adaptive loss function
+python src/train.py --loss-function adaptive --save-model 
 
-## 模型评估与可视化
+# Run tests
+python -m pytest tests/ -v
+```
+
+## Model Evaluation & Visualization
 
 ```bash
-# 训练模型并保存
+# Train model and save
 python src/train.py --save-model
 
-# 评估模型性能
+# Basic model evaluation
 python src/evaluate.py --visualize
 
-# 使用自定义参数
+# Advanced evaluation with baseline comparison
+python src/evaluate.py --visualize --compare-baselines --analyze-features
+
+# Use custom parameters
 python src/evaluate.py --model-path models/custom_model.pt --save-plot results/performance.png
 ```
 
-## 项目结构
+## Advanced Evaluation Features
+
+The enhanced evaluation system provides:
+
+1. **Comprehensive Metrics**:
+   - Standard prediction metrics: MSE, RMSE, MAE, Direction Accuracy
+   - Risk-adjusted metrics: Sharpe, Sortino, Calmar ratios
+   - Trading performance: Win Rate, Profit/Loss Ratio, Maximum Drawdown
+
+2. **Statistical Significance Testing**:
+   - t-tests for comparing means
+   - Wilcoxon signed-rank tests for non-parametric comparison
+   - Bootstrap confidence intervals
+
+3. **Baseline Strategy Comparisons**:
+   - Buy & Hold
+   - Simple Moving Average Crossover
+   - Momentum
+   - Mean Reversion
+   - Ensemble strategies
+
+4. **Enhanced Visualizations**:
+   - Strategy comparison charts
+   - Drawdown analysis
+   - Rolling performance metrics
+   - Feature importance analysis
+
+## Project Structure
 
 ```
 .
-├── configs/             # 配置文件
-│   └── default.yaml     # 默认参数配置
-├── data/                # 数据文件
-│   └── sample.csv       # 示例股票数据
-├── src/                 # 源代码
-│   ├── data/            # 数据处理
-│   │   └── loader.py    # 数据加载器
-│   ├── model/           # 模型定义
-│   │   ├── lstm.py      # LSTM模型
-│   │   └── kelly_loss.py# 凯利准则损失函数
-│   ├── train.py         # 训练脚本
-│   └── evaluate.py      # 评估脚本
-├── tests/               # 单元测试
-└── models/              # 保存的模型（自动创建）
+├── configs/             # Configuration files
+│   └── default.yaml     # Default parameter configuration
+├── data/                # Data files
+│   └── sample.csv       # Sample stock data
+├── src/                 # Source code
+│   ├── data/            # Data processing
+│   │   ├── loader.py    # Data loader
+│   │   └── feature_engineering.py  # Feature engineering
+│   ├── model/           # Model definitions
+│   │   ├── lstm.py      # LSTM model
+│   │   ├── kelly_loss.py     # Kelly criterion loss function
+│   │   └── advanced_loss.py  # Advanced loss functions
+│   ├── baselines/       # Baseline strategies
+│   │   └── simple_strategies.py  # Implementation of baseline strategies
+│   ├── train.py         # Training script
+│   └── evaluate.py      # Evaluation script with advanced metrics
+├── tests/               # Unit tests
+├── logs/                # Training logs (auto-created)
+└── models/              # Saved models (auto-created)
 ```
 
+## Loss Functions
+
+### Kelly Enhanced Loss
+Optimizes for:
+- Equity curve trends
+- Kelly position sizing
+- Turnover penalties
+
+### Adaptive Multi-Objective Loss
+Advanced loss function that dynamically adjusts weights based on market conditions:
+- Enhanced equity curve optimization
+- Dynamic risk-adjusted Kelly model
+- Realistic transaction cost modeling
+- Adaptive weight allocation
